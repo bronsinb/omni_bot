@@ -1,0 +1,16 @@
+alpaca-py
+python-telegram-bot
+pandas
+numpy
+pandas-ta
+scikit-learn
+python-dotenv
+xgboost
+schedule
+websockets
+pytz
+finvizfinance
+beautifulsoup4
+lxml
+requests
+
