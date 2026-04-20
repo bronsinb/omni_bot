@@ -57,7 +57,23 @@ class DataEngine:
         """Callback triggered every minute with new bar data from websocket."""
         logger.info(f"Live Price Update [{bar.symbol}]: {bar.close}")
         self.latest_prices[bar.symbol] = bar.close
-        # Here we could emit an event to the Strategy Engine to recalculate immediately
+        
+        # Append the new bar to the local DataFrame so TA indicators stay accurate
+        if bar.symbol in self.historical_data and self.historical_data[bar.symbol] is not None:
+            new_row = pd.DataFrame({
+                'open': [bar.open],
+                'high': [bar.high],
+                'low': [bar.low],
+                'close': [bar.close],
+                'volume': [bar.volume],
+                'trade_count': [bar.trade_count],
+                'vwap': [bar.vwap]
+            }, index=[pd.to_datetime(bar.timestamp)])
+            
+            # Concatenate and keep max ~1 week of 1m bars (3000)
+            self.historical_data[bar.symbol] = pd.concat([self.historical_data[bar.symbol], new_row])
+            if len(self.historical_data[bar.symbol]) > 3000:
+                self.historical_data[bar.symbol] = self.historical_data[bar.symbol].iloc[-3000:]
 
     async def start_stream(self):
         """Connects to Alpaca websocket and listens for data indefinitely."""

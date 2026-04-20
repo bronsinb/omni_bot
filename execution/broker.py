@@ -24,6 +24,11 @@ class ExecutionEngine:
         self.option_client = OptionHistoricalDataClient(self.api_key, self.secret_key)
         
         self.telegram = telegram_notifier
+        
+        # In-memory cache to avoid spamming Alpaca for Options Chains
+        self.option_cache = {}
+        self.option_cache_ttl = 300 # 5 minutes
+
         logger.info(f"Execution Engine initialized (Paper Mode: {self.paper})")
 
     def _get_best_0dte_option(self, symbol: str, option_type: str) -> str:
@@ -31,6 +36,13 @@ class ExecutionEngine:
         Queries Alpaca for the latest Option Chain and selects an OTM 0DTE contract.
         option_type = 'call' or 'put'
         """
+        import time
+        now = time.time()
+        cache_key = f"{symbol}_{option_type}"
+        if cache_key in self.option_cache:
+            if now - self.option_cache[cache_key]['timestamp'] < self.option_cache_ttl:
+                return self.option_cache[cache_key]['symbol']
+
         # Note: This requires an OPRA subscription on your Alpaca account.
         
         # For MVP: Return a dummy string if we can't fetch it, preventing a crash.
@@ -46,6 +58,12 @@ class ExecutionEngine:
             # and strike price > current price (for calls).
             best_contract_symbol = list(chain.keys())[0]
             logger.info(f"🎯 Selected 0DTE {option_type.upper()} Contract: {best_contract_symbol}")
+            
+            # Update cache
+            self.option_cache[cache_key] = {
+                'timestamp': time.time(),
+                'symbol': best_contract_symbol
+            }
             return best_contract_symbol
             
         except Exception as e:
